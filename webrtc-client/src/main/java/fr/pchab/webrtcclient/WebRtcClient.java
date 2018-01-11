@@ -1,5 +1,6 @@
 package fr.pchab.webrtcclient;
 
+import java.lang.annotation.Target;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -49,7 +50,7 @@ public class WebRtcClient {
 
     private class CreateOfferCommand implements Command{
         public void execute(String peerId, JSONObject payload) throws JSONException {
-            Log.d(TAG,"CreateOfferCommand");
+            Log.d(TAG,"CreateOfferCommand, peerId is:" + peerId + " payload is:" + payload);
             Peer peer = peers.get(peerId);
             peer.pc.createOffer(peer, pcConstraints);
         }
@@ -57,7 +58,7 @@ public class WebRtcClient {
 
     private class CreateAnswerCommand implements Command{
         public void execute(String peerId, JSONObject payload) throws JSONException {
-            Log.d(TAG,"CreateAnswerCommand");
+            Log.d(TAG,"CreateAnswerCommand, peerId is:" + peerId + " payload is:" + payload);
             Peer peer = peers.get(peerId);
             SessionDescription sdp = new SessionDescription(
                     SessionDescription.Type.fromCanonicalForm(payload.getString("type")),
@@ -70,7 +71,7 @@ public class WebRtcClient {
 
     private class SetRemoteSDPCommand implements Command{
         public void execute(String peerId, JSONObject payload) throws JSONException {
-            Log.d(TAG,"SetRemoteSDPCommand");
+            Log.d(TAG,"SetRemoteSDPCommand, peerId is:" + peerId + " payload is:" + payload);
             Peer peer = peers.get(peerId);
             SessionDescription sdp = new SessionDescription(
                     SessionDescription.Type.fromCanonicalForm(payload.getString("type")),
@@ -82,7 +83,7 @@ public class WebRtcClient {
 
     private class AddIceCandidateCommand implements Command{
         public void execute(String peerId, JSONObject payload) throws JSONException {
-            Log.d(TAG,"AddIceCandidateCommand");
+            Log.d(TAG,"AddIceCandidateCommand, peerId is:" + peerId + " payload is:" + payload);
             PeerConnection pc = peers.get(peerId).pc;
             if (pc.getRemoteDescription() != null) {
                 IceCandidate candidate = new IceCandidate(
@@ -108,6 +109,7 @@ public class WebRtcClient {
         message.put("to", to);
         message.put("type", type);
         message.put("payload", payload);
+        Log.d(TAG, " WebRtcClient sendMessage, message is:" + message);
         client.emit("message", message);
     }
 
@@ -126,6 +128,7 @@ public class WebRtcClient {
             @Override
             public void call(Object... args) {
                 JSONObject data = (JSONObject) args[0];
+                Log.d(TAG,"receive message:" + data.toString());
                 try {
                     String from = data.getString("from");
                     String type = data.getString("type");
@@ -148,14 +151,17 @@ public class WebRtcClient {
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
+                Log.d(TAG,"handle end message:" + data.toString());
             }
         };
 
         private Emitter.Listener onId = new Emitter.Listener() {
             @Override
             public void call(Object... args) {
+                Log.d(TAG, "socket connectioned. start call");
                 String id = (String) args[0];
                 mListener.onCallReady(id);
+                Log.d(TAG, "socket connectioned. end call");
             }
         };
     }
@@ -279,10 +285,11 @@ public class WebRtcClient {
         }
         client.on("id", messageHandler.onId);
         client.on("message", messageHandler.onMessage);
+        Log.d(TAG,"new webrtc client, start connect to server");
         client.connect();
+        Log.d(TAG,"new webrtc client, end connect to server");
 
-        iceServers.add(new PeerConnection.IceServer("stun:23.21.150.121"));
-        iceServers.add(new PeerConnection.IceServer("stun:stun.l.google.com:19302"));
+        iceServers.add(new PeerConnection.IceServer("stun:10.42.17.31"));
 
         pcConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
         pcConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"));
@@ -330,17 +337,21 @@ public class WebRtcClient {
      * @param name client name
      */
     public void start(String name){
+        Log.d(TAG, " web rtc client start " + " name is:" + name);
         setCamera();
         try {
             JSONObject message = new JSONObject();
             message.put("name", name);
             client.emit("readyToStream", message);
+            Log.d(TAG, " send ready to stream ready" + " name is:" + name);
         } catch (JSONException e) {
             e.printStackTrace();
         }
+        Log.d(TAG, " web rtc client end" + " name is:" + name);
     }
 
     private void setCamera(){
+        Log.d(TAG,"set camera start");
         localMS = factory.createLocalMediaStream("ARDAMS");
         if(pcParams.videoCallEnabled){
             MediaConstraints videoConstraints = new MediaConstraints();
@@ -357,6 +368,7 @@ public class WebRtcClient {
         localMS.addTrack(factory.createAudioTrack("ARDAMSa0", audioSource));
 
         mListener.onLocalStream(localMS);
+        Log.d(TAG,"set camera end");
     }
 
     private VideoCapturer getVideoCapturer() {
